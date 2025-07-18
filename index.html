@@ -147,77 +147,27 @@
             }
         }
         
-        /**
-         * Orchestrates the analysis of the tool using the Gemini API.
-         * @param {string} toolName The name of the tool to analyze.
-         */
+        // --- SOLO llamada al backend ---
         async function analyzeTool(toolName) {
-            // This is the prompt that instructs the AI model.
             const prompt = `
                 Actúa como un experto en protección de datos especializado en el RGPD y la LOPDGDD de España, enfocado en el sector educativo.
                 Realiza un análisis exhaustivo de la herramienta digital llamada "${toolName}".
                 Busca en internet su política de privacidad oficial, términos de servicio y cualquier documentación relevante sobre protección de datos.
-
-                Analiza los siguientes puntos críticos:
-                1.  **Cumplimiento del RGPD**: ¿La herramienta declara cumplir con el RGPD? ¿Menciona los derechos de los usuarios (acceso, rectificación, supresión, etc.)?
-                2.  **Cumplimiento de la LOPDGDD (España)**: ¿Hay alguna mención específica a la normativa española o adaptaciones para España?
-                3.  **Edad Mínima**: ¿Cuál es la edad mínima para usar la herramienta? ¿Es de 13, 14, 16 o 18 años? ¿Requiere consentimiento parental por debajo de esa edad? En España, la edad de consentimiento digital es de 14 años. Analiza si la herramienta lo respeta.
-                4.  **Transferencia de Datos fuera del EEE**: ¿Los datos personales se transfieren fuera del Espacio Económico Europeo (EEE)? Si es así, ¿bajo qué salvaguardas (Cláusulas Contractuales Tipo, DPF, etc.)?
-                5.  **Manejo de Datos de Menores**: ¿Cómo gestionan específicamente los datos de menores de edad? ¿Existen protecciones adicionales?
-                6.  **Consentimiento Parental**: ¿Describe el proceso para obtener y verificar el consentimiento de los padres o tutores legales para los menores?
-                7.  **Certificaciones de Seguridad**: ¿Menciona alguna certificación de seguridad relevante como ISO/IEC 27001, ISO/IEC 27018, SOC 2, o similar?
-                8.  **Idoneidad para el Aula**: Basado en todo lo anterior, ¿es una herramienta apta para ser usada en un aula con estudiantes en España?
-
+                ...
                 Proporciona la respuesta EXCLUSIVAMENTE en formato JSON, utilizando el siguiente esquema. No añadas texto antes o después del JSON. Si no encuentras información para un campo, usa el valor null o una cadena de texto indicando que no se encontró la información.
-
             `;
 
-            // This schema defines the structure of the expected JSON response.
             const schema = {
-                type: "OBJECT",
-                properties: {
-                    toolName: { type: "STRING" },
-                    isSuitable: { type: "BOOLEAN", description: "True si es apta, False si no, null si es ambiguo." },
-                    suitabilityReasoning: { type: "STRING", description: "Breve justificación sobre la idoneidad." },
-                    minimumAge: { type: "STRING", description: "La edad mínima encontrada, ej: '14 años con consentimiento parental'."},
-                    compliance: {
-                        type: "OBJECT",
-                        properties: {
-                            gdpr: { type: "STRING", description: "Notas sobre el cumplimiento del RGPD." },
-                            lopdgdd: { type: "STRING", description: "Notas sobre el cumplimiento de la LOPDGDD." }
-                        }
-                    },
-                    analysis: {
-                        type: "OBJECT",
-                        properties: {
-                            privacyPolicyUrl: { type: "STRING", description: "URL directa a la política de privacidad." },
-                            dataTransfersOutsideEea: { type: "STRING", description: "Análisis sobre transferencias de datos." },
-                            minorsDataHandling: { type: "STRING", description: "Cómo se manejan los datos de menores." },
-                            parentalConsent: { type: "STRING", description: "Proceso de consentimiento parental." }
-                        }
-                    },
-                    certifications: { type: "STRING", description: "Certificaciones encontradas, ej: 'ISO/IEC 27001'." },
-                    overallSummary: { type: "STRING", description: "Un resumen global para el usuario final." }
-                },
+                // ...tu schema aquí...
             };
 
-            // Prepare the payload for the Gemini API call.
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: schema,
-                }
-            };
-            
-            const apiKey = ""; // Leave empty, it will be handled by the environment
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            // SOLO llamada al backend
+            const backendUrl = "https://1e195282-db76-4866-9fe9-edeadcbfafd3-00-1y7iv1q0huyom.kirk.replit.dev/analyze";
 
-            // Make the API call.
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+            const response = await fetch(backendUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ toolName, prompt, schema })
             });
 
             if (!response.ok) {
@@ -226,25 +176,16 @@
             }
 
             const result = await response.json();
-            
+
             if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts.length > 0) {
                 const jsonText = result.candidates[0].content.parts[0].text;
                 const data = JSON.parse(jsonText);
                 displayResults(data);
             } else {
-                console.warn("Unexpected API response structure:", result);
-                if (result.promptFeedback && result.promptFeedback.blockReason) {
-                     showError(`La solicitud fue bloqueada por la política de seguridad. Razón: ${result.promptFeedback.blockReason}`);
-                } else {
-                     showError("La IA no pudo generar una respuesta válida. Intenta reformular la pregunta o el nombre de la herramienta.");
-                }
+                showError("La IA no pudo generar una respuesta válida.");
             }
         }
 
-        /**
-         * Displays the analysis results in the UI.
-         * @param {object} data The parsed JSON data from the API.
-         */
         function displayResults(data) {
             document.getElementById('results-title').textContent = `Análisis de ${data.toolName || toolNameInput.value}`;
             
@@ -277,22 +218,14 @@
             resultsContainer.classList.remove('hidden');
         }
 
-        /**
-         * Shows an error message in the UI.
-         * @param {string} message The error message to display.
-         */
         function showError(message) {
             errorText.textContent = message;
             errorMessage.classList.remove('hidden');
         }
 
-        /**
-         * Hides the error message.
-         */
         function hideError() {
             errorMessage.classList.add('hidden');
         }
     </script>
 </body>
 </html>
-
