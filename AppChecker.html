@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificador de Herramientas Digitales para Aulas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .loader {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .prose-custom {
+            color: #374151; /* text-gray-700 */
+        }
+        .prose-custom h3 {
+            color: #111827; /* text-gray-900 */
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .prose-custom p {
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center p-4 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop');">
+        <div class="w-full max-w-3xl">
+            <div class="card bg-white/80 border border-gray-200 rounded-2xl shadow-2xl p-6 md:p-10">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Verificador de Herramientas Digitales</h1>
+                    <p class="text-gray-600 mt-2">Analiza si una herramienta digital es segura y cumple con la normativa para su uso en el aula.</p>
+                </div>
+
+                <form id="tool-form" class="flex flex-col sm:flex-row gap-3 mb-6">
+                    <input type="text" id="tool-name" placeholder="Ej: Kahoot, Genially, Canva..." class="flex-grow w-full px-4 py-3 text-lg bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    <button type="submit" id="analyze-button" class="bg-blue-600 text-white font-bold text-lg px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-transform transform hover:scale-105">
+                        Analizar
+                    </button>
+                </form>
+
+                <!-- Loader -->
+                <div id="loader" class="hidden flex-col items-center justify-center text-center p-8">
+                    <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 mb-4"></div>
+                    <h2 class="text-xl font-semibold text-gray-700">Analizando...</h2>
+                    <p class="text-gray-500">Estamos revisando la documentación de la herramienta. Esto puede tardar unos segundos.</p>
+                </div>
+
+                <!-- Error Message -->
+                <div id="error-message" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
+                    <p class="font-bold">Error</p>
+                    <p id="error-text"></p>
+                </div>
+
+                <!-- Results -->
+                <div id="results-container" class="hidden space-y-8">
+                    <div>
+                        <h2 id="results-title" class="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-6"></h2>
+                        <div id="suitability-badge" class="p-4 rounded-lg text-center text-lg font-semibold"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white/60 p-5 rounded-lg border">
+                            <h3 class="font-bold text-xl text-gray-800 mb-2">Edad Mínima</h3>
+                            <p id="minimum-age" class="text-gray-700 text-lg"></p>
+                        </div>
+                        <div class="bg-white/60 p-5 rounded-lg border">
+                            <h3 class="font-bold text-xl text-gray-800 mb-2">Certificaciones</h3>
+                            <p id="certifications" class="text-gray-700"></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/60 p-5 rounded-lg border prose-custom max-w-none">
+                        <h3 class="text-xl font-bold text-gray-800">Resumen General de Cumplimiento</h3>
+                        <p id="overall-summary" class="mt-2"></p>
+                    </div>
+
+                    <div class="bg-white/60 p-5 rounded-lg border prose-custom max-w-none">
+                        <h3 class="text-xl font-bold text-gray-800">Análisis Detallado</h3>
+                        <div id="detailed-analysis" class="space-y-4 mt-2"></div>
+                    </div>
+                </div>
+            </div>
+             <footer class="text-center mt-4">
+                <p class="text-sm text-white/80">Descargo de responsabilidad: Este análisis es generado por IA y debe ser usado como una guía informativa. Siempre se recomienda una revisión manual y legal.</p>
+            </footer>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- DOM Element References ---
+        const toolForm = document.getElementById('tool-form');
+        const toolNameInput = document.getElementById('tool-name');
+        const analyzeButton = document.getElementById('analyze-button');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const resultsContainer = document.getElementById('results-container');
+
+        // --- Event Listener ---
+        toolForm.addEventListener('submit', handleFormSubmit);
+
+        /**
+         * Handles the form submission event.
+         * @param {Event} e The submission event.
+         */
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const toolName = toolNameInput.value.trim();
+
+            if (!toolName) {
+                showError("Por favor, introduce el nombre de una herramienta.");
+                return;
+            }
+            
+            // Reset UI
+            hideError();
+            resultsContainer.classList.add('hidden');
+            loader.classList.remove('hidden');
+            loader.classList.add('flex');
+            analyzeButton.disabled = true;
+            analyzeButton.classList.add('opacity-50');
+
+            try {
+                await analyzeTool(toolName);
+            } catch (err) {
+                console.error("Error during analysis:", err);
+                showError("No se pudo completar el análisis. Por favor, inténtalo de nuevo más tarde.");
+            } finally {
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+                analyzeButton.disabled = false;
+                analyzeButton.classList.remove('opacity-50');
+            }
+        }
+        
+        /**
+         * Orchestrates the analysis of the tool using the Gemini API.
+         * @param {string} toolName The name of the tool to analyze.
+         */
+        async function analyzeTool(toolName) {
+            // This is the prompt that instructs the AI model.
+            const prompt = `
+                Actúa como un experto en protección de datos especializado en el RGPD y la LOPDGDD de España, enfocado en el sector educativo.
+                Realiza un análisis exhaustivo de la herramienta digital llamada "${toolName}".
+                Busca en internet su política de privacidad oficial, términos de servicio y cualquier documentación relevante sobre protección de datos.
+
+                Analiza los siguientes puntos críticos:
+                1.  **Cumplimiento del RGPD**: ¿La herramienta declara cumplir con el RGPD? ¿Menciona los derechos de los usuarios (acceso, rectificación, supresión, etc.)?
+                2.  **Cumplimiento de la LOPDGDD (España)**: ¿Hay alguna mención específica a la normativa española o adaptaciones para España?
+                3.  **Edad Mínima**: ¿Cuál es la edad mínima para usar la herramienta? ¿Es de 13, 14, 16 o 18 años? ¿Requiere consentimiento parental por debajo de esa edad? En España, la edad de consentimiento digital es de 14 años. Analiza si la herramienta lo respeta.
+                4.  **Transferencia de Datos fuera del EEE**: ¿Los datos personales se transfieren fuera del Espacio Económico Europeo (EEE)? Si es así, ¿bajo qué salvaguardas (Cláusulas Contractuales Tipo, DPF, etc.)?
+                5.  **Manejo de Datos de Menores**: ¿Cómo gestionan específicamente los datos de menores de edad? ¿Existen protecciones adicionales?
+                6.  **Consentimiento Parental**: ¿Describe el proceso para obtener y verificar el consentimiento de los padres o tutores legales para los menores?
+                7.  **Certificaciones de Seguridad**: ¿Menciona alguna certificación de seguridad relevante como ISO/IEC 27001, ISO/IEC 27018, SOC 2, o similar?
+                8.  **Idoneidad para el Aula**: Basado en todo lo anterior, ¿es una herramienta apta para ser usada en un aula con estudiantes en España?
+
+                Proporciona la respuesta EXCLUSIVAMENTE en formato JSON, utilizando el siguiente esquema. No añadas texto antes o después del JSON. Si no encuentras información para un campo, usa el valor null o una cadena de texto indicando que no se encontró la información.
+
+            `;
+
+            // This schema defines the structure of the expected JSON response.
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    toolName: { type: "STRING" },
+                    isSuitable: { type: "BOOLEAN", description: "True si es apta, False si no, null si es ambiguo." },
+                    suitabilityReasoning: { type: "STRING", description: "Breve justificación sobre la idoneidad." },
+                    minimumAge: { type: "STRING", description: "La edad mínima encontrada, ej: '14 años con consentimiento parental'."},
+                    compliance: {
+                        type: "OBJECT",
+                        properties: {
+                            gdpr: { type: "STRING", description: "Notas sobre el cumplimiento del RGPD." },
+                            lopdgdd: { type: "STRING", description: "Notas sobre el cumplimiento de la LOPDGDD." }
+                        }
+                    },
+                    analysis: {
+                        type: "OBJECT",
+                        properties: {
+                            privacyPolicyUrl: { type: "STRING", description: "URL directa a la política de privacidad." },
+                            dataTransfersOutsideEea: { type: "STRING", description: "Análisis sobre transferencias de datos." },
+                            minorsDataHandling: { type: "STRING", description: "Cómo se manejan los datos de menores." },
+                            parentalConsent: { type: "STRING", description: "Proceso de consentimiento parental." }
+                        }
+                    },
+                    certifications: { type: "STRING", description: "Certificaciones encontradas, ej: 'ISO/IEC 27001'." },
+                    overallSummary: { type: "STRING", description: "Un resumen global para el usuario final." }
+                },
+            };
+
+            // Prepare the payload for the Gemini API call.
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: schema,
+                }
+            };
+            
+            const apiKey = ""; // Leave empty, it will be handled by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            // Make the API call.
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`API Error: ${response.status} ${errorBody}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts.length > 0) {
+                const jsonText = result.candidates[0].content.parts[0].text;
+                const data = JSON.parse(jsonText);
+                displayResults(data);
+            } else {
+                console.warn("Unexpected API response structure:", result);
+                if (result.promptFeedback && result.promptFeedback.blockReason) {
+                     showError(`La solicitud fue bloqueada por la política de seguridad. Razón: ${result.promptFeedback.blockReason}`);
+                } else {
+                     showError("La IA no pudo generar una respuesta válida. Intenta reformular la pregunta o el nombre de la herramienta.");
+                }
+            }
+        }
+
+        /**
+         * Displays the analysis results in the UI.
+         * @param {object} data The parsed JSON data from the API.
+         */
+        function displayResults(data) {
+            document.getElementById('results-title').textContent = `Análisis de ${data.toolName || toolNameInput.value}`;
+            
+            const suitabilityBadge = document.getElementById('suitability-badge');
+            if (data.isSuitable === true) {
+                suitabilityBadge.className = 'p-4 rounded-lg text-center text-lg font-semibold bg-green-100 text-green-800 border border-green-200';
+                suitabilityBadge.textContent = `✅ Apta para uso en el aula. ${data.suitabilityReasoning || ''}`;
+            } else if (data.isSuitable === false) {
+                suitabilityBadge.className = 'p-4 rounded-lg text-center text-lg font-semibold bg-red-100 text-red-800 border border-red-200';
+                suitabilityBadge.textContent = `❌ No recomendada. ${data.suitabilityReasoning || ''}`;
+            } else {
+                suitabilityBadge.className = 'p-4 rounded-lg text-center text-lg font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200';
+                suitabilityBadge.textContent = `⚠️ Se recomienda precaución. ${data.suitabilityReasoning || 'Revisar manualmente los detalles.'}`;
+            }
+
+            document.getElementById('minimum-age').textContent = data.minimumAge || 'No especificada.';
+            document.getElementById('certifications').textContent = data.certifications || 'No se mencionan certificaciones relevantes.';
+            document.getElementById('overall-summary').textContent = data.overallSummary || 'No se pudo generar un resumen.';
+
+            const detailsContainer = document.getElementById('detailed-analysis');
+            detailsContainer.innerHTML = `
+                <div class="prose-custom"><h3><a href="${data.analysis.privacyPolicyUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Política de Privacidad</a></h3><p>Se recomienda revisar la política directamente en su web.</p></div>
+                <div class="prose-custom"><h3>Cumplimiento RGPD</h3><p>${data.compliance.gdpr || 'No especificado.'}</p></div>
+                <div class="prose-custom"><h3>Cumplimiento LOPDGDD (España)</h3><p>${data.compliance.lopdgdd || 'No especificado.'}</p></div>
+                <div class="prose-custom"><h3>Transferencia de Datos fuera del EEE</h3><p>${data.analysis.dataTransfersOutsideEea || 'No especificado.'}</p></div>
+                <div class="prose-custom"><h3>Manejo de Datos de Menores</h3><p>${data.analysis.minorsDataHandling || 'No especificado.'}</p></div>
+                <div class="prose-custom"><h3>Consentimiento Parental</h3><p>${data.analysis.parentalConsent || 'No especificado.'}</p></div>
+            `;
+
+            resultsContainer.classList.remove('hidden');
+        }
+
+        /**
+         * Shows an error message in the UI.
+         * @param {string} message The error message to display.
+         */
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the error message.
+         */
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
+
