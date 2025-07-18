@@ -151,15 +151,40 @@
         async function analyzeTool(toolName) {
             const prompt = `
                 Actúa como un experto en protección de datos especializado en el RGPD y la LOPDGDD de España, enfocado en el sector educativo.
-                Realiza un análisis exhaustivo de la herramienta digital llamada "${toolName}".
+                Analiza la herramienta digital llamada "${toolName}".
                 Busca en internet su política de privacidad oficial, términos de servicio y cualquier documentación relevante sobre protección de datos.
-                ...
-                Proporciona la respuesta EXCLUSIVAMENTE en formato JSON, utilizando el siguiente esquema. No añadas texto antes o después del JSON. Si no encuentras información para un campo, usa el valor null o una cadena de texto indicando que no se encontró la información.
-            `;
+                Devuelve SOLO un JSON con los siguientes campos: toolName, isSuitable, suitabilityReasoning, minimumAge, certifications, overallSummary, compliance (gdpr, lopdgdd), analysis (privacyPolicyUrl, dataTransfersOutsideEea, minorsDataHandling, parentalConsent).
+                Si no encuentras información para un campo, pon null o una cadena indicando que no se encontró información.
+                No añadas texto antes o después del JSON.
+                `;
 
             const schema = {
-                // ...tu schema aquí...
-            };
+                "type": "object",
+                "properties": {
+                    "toolName": { "type": "string" },
+                    "isSuitable": { "type": "boolean" },
+                    "suitabilityReasoning": { "type": "string" },
+                    "minimumAge": { "type": "string" },
+                    "certifications": { "type": "string" },
+                    "overallSummary": { "type": "string" },
+                    "compliance": {
+                    "type": "object",
+                    "properties": {
+                        "gdpr": { "type": "string" },
+                        "lopdgdd": { "type": "string" }
+                    }
+                    },
+                    "analysis": {
+                    "type": "object",
+                    "properties": {
+                        "privacyPolicyUrl": { "type": "string" },
+                        "dataTransfersOutsideEea": { "type": "string" },
+                        "minorsDataHandling": { "type": "string" },
+                        "parentalConsent": { "type": "string" }
+                    }
+                    }
+                }
+                };
 
             // SOLO llamada al backend
             const backendUrl = "https://1e195282-db76-4866-9fe9-edeadcbfafd3-00-1y7iv1q0huyom.kirk.replit.dev/analyze";
